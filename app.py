@@ -69,23 +69,42 @@ class key_value(Resource):
 
 class views(Resource):
     #basic response of replica's views, probably have to check update of views from everyone else beforehand
+    #Cases to Test:
+    #1. returns correct view list
     def get(self):
         views = os.environ.get('VIEW')
         return make_response(jsonify(doesExist=True, message='View retrieved successfully', view=views))
 
+
+    #Cases to Test:
+    #1.returns appropriate response, i.e if delete was successful or if there is no actual address there
+    #2.call get() view after delete to see if its actually deleted
+    #3.test if using list.remove() is ok
     def delete(self):
         data = request.get_json()
         delView = data.get('socket-address')
         viewsList = os.environ.get('VIEW').split(',')
+        #include code here to check if the request is from a client or from replica, and handle accordingly
+        if 'FORWARDING_ADDRESS' not in os.environ:
+            #broadcast to all the delete request, 
+            socketAddress = os.environ.get('SOCKET_ADDRESS')
+            newList = [i for i in viewList]
+            newList = newList.remove(socketAddress) 
+            broadcast(viewsList)
+
         if delView in viewsList:
             viewsList.remove(delView)
             newView = ','.join(viewsList)
             os.environ['VIEW'] = newView
             #broadcast this to other replicas, (should every view request check if other replicas are alive before broadcasting?)
             return make_response(jsonify(doesExist=True, message='Replica deleted successfully from the view'), 200)
+        else:
+            #should also broadcast to other replicas to see if it has that view in the replica
+            return make_response(jsonify(doesExist=False, error='Socket address does not exist in the view', message='Error in DELETE') 400)
 
+    def broadcast(self, viewsList):
+        for view in viewsList:
 
-    def broadcast(self):
 
 
 api.add_resource(key_value, '/key-value-store/', '/key-value-store/<key>')
