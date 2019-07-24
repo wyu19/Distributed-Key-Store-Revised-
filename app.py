@@ -66,7 +66,30 @@ class key_value(Resource):
             else:
                 return make_response(jsonify(doesExist=True, message="Deleted successfully"), 200)
 
+
+class views(Resource):
+    #basic response of replica's views, probably have to check update of views from everyone else beforehand
+    def get(self):
+        views = os.environ.get('VIEW')
+        return make_response(jsonify(doesExist=True, message='View retrieved successfully', view=views))
+
+    def delete(self):
+        data = request.get_json()
+        delView = data.get('socket-address')
+        viewsList = os.environ.get('VIEW').split(',')
+        if delView in viewsList:
+            viewsList.remove(delView)
+            newView = ','.join(viewsList)
+            os.environ['VIEW'] = newView
+            #broadcast this to other replicas, (should every view request check if other replicas are alive before broadcasting?)
+            return make_response(jsonify(doesExist=True, message='Replica deleted successfully from the view'), 200)
+
+
+    def broadcast(self):
+
+
 api.add_resource(key_value, '/key-value-store/', '/key-value-store/<key>')
+api.add_resource(views, 'key-value-store-view')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
